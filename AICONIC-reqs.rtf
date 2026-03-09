@@ -1,0 +1,65 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2868
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Bold;\f1\fswiss\fcharset0 ArialMT;\f2\froman\fcharset0 Times-Roman;
+}
+{\colortbl;\red255\green255\blue255;\red26\green26\blue26;\red255\green255\blue255;\red0\green0\blue0;
+}
+{\*\expandedcolortbl;;\cssrgb\c13333\c13333\c13333;\cssrgb\c100000\c100000\c100000;\cssrgb\c0\c0\c0;
+}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\qc\partightenfactor0
+
+\f0\b\fs48 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 Capabilities and features
+\f1\b0\fs20 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+
+\f0\b\fs37\fsmilli18667 \cf2 \strokec4 Structure
+\f1\b0\fs20 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+
+\fs32 \cf2 \strokec4 \'95
+\f2 One project linked to one repo (in bitbucket) and one target deployment (if it were to go to deployment),\'a0ieproject=repo=target deploy. Prefer to define this at the start and not have changed. Repo can have template deployment code, that can be cloned.
+\f1 \strokec2 \
+\strokec4 \'95
+\f2 Projects consist of code, disk space, hardware enabled workspaces, environment (installed packages and secrets), access to data and shared services. A\'a0project (in dev) and target in PROD or \'93PROD-lite\'94 should be identifiable to allocate costs by central admin team (CBT), the same tag would span the project, target deployment in prod or prod-lite.
+\f1 \strokec2 \
+\strokec4 \'95
+\f2 PROD-lite\'a0may or may not be isolated from Dev or QA-lite. Only\'a0CBT (central team) has access to PROD environment.\'a0
+\f1 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+
+\f0\b\fs37\fsmilli18667 \cf2 \strokec4 Team Federation
+\f1\b0\fs20 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+
+\fs32 \cf2 \strokec4 \'95
+\f2 \'93Team N\'94\'a0
+\f0\b in Dev\'a0
+\f2\b0 can spin up Projects and compute environments picking from hardware tiers. These are done without CBT in the loop, but \'91could\'92 require an admin from team-N (up to them if the platform allows this). Team N, can have a designated admin, and other roles with admin domain in their team space, but not outside. Projects\'a0have individual access control, to access objects in the project and data permissions, or that could be at a user level.
+\f1 \strokec2 \
+\strokec4 \'95
+\f2 Team\'a0N can also deploy to a target-deployment in PROD-lite without the aid of CBT (admin team).
+\f1 \strokec2 \
+\strokec4 \'95
+\f2 CBT\'a0(central team): sets guardrails such as allowed compute, environments, automatic turnoff\'a0etc\'a0for Dev and Prod-lite. This could be the same for all teams.
+\f1 \strokec2 \
+\strokec4 \'95
+\f2 Ideally\'a0central\'a0team\'a0would\'a0not have access to Team N\'92s project or data in it, if not at least there is a record/logs of the admin trying to access to it.
+\f1 \strokec2 \
+\strokec4 \'95
+\f2 We expect order of ~10 teams, but probably 100s of projects
+\f1 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+
+\f0\b\fs37\fsmilli18667 \cf2 \strokec4 Shared services for all teams:
+\f1\b0\fs20 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+
+\fs32 \cf2 \strokec4 \'95
+\f2 Access preset\'a0environments
+\f1 \strokec2 \
+\strokec4 \'95
+\f2 Access\'a0services and endpoints within VPC but outside platform: experiment tracking, model, MCP, agent catalogues, Data catalogues
+\f1 \strokec2 \
+}

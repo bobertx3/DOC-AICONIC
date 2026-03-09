@@ -1,0 +1,46 @@
+graph LR
+    subgraph Actors
+        CBT["CBT Admin"]
+        TeamAdmin["Team 1 Admin"]
+        TeamDev["Team 1 Developer"]
+    end
+
+    subgraph Bitbucket
+        Template["project-template/"]
+        Repo["recruiting-ml-model/"]
+        Template -->|clone| Repo
+    end
+
+    subgraph DEV["DEV Workspace"]
+        Folder["/Teams/team1/recruiting-ml-model/"]
+        Catalog["Catalog: hr_digital_team1"]
+        Schema["Schema: recruiting_ml_model\n(tables, volumes, models)"]
+        Cluster["Dev Clusters"]
+        Policies["Cluster Policies\n(ml-gpu, ml-standard, interactive)"]
+        Shared["Shared Services\n(MLflow, Secrets, Feature Store)"]
+        Catalog --> Schema
+        Policies -.->|governs| Cluster
+    end
+
+    %% CBT governance
+    CBT -->|sets policies &\nguardrails| Policies
+
+    %% Team flows
+    TeamAdmin -->|owns| Catalog
+    TeamDev -->|develops in| Folder
+    TeamDev -->|reads/writes| Schema
+    TeamDev -->|runs on| Cluster
+
+    %% Git
+    Repo -->|Git sync| Folder
+
+    %% Styling
+    classDef cbt fill:#2c3e50,color:#fff,stroke:#2c3e50
+    classDef team fill:#c0392b,color:#fff,stroke:#c0392b
+    classDef policy fill:#3498db,color:#fff,stroke:#3498db
+    classDef bb fill:#205081,color:#fff,stroke:#205081
+
+    class CBT cbt
+    class TeamAdmin,TeamDev team
+    class Policies policy
+    class Template,Repo bb

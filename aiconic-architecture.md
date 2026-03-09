@@ -1,0 +1,70 @@
+# AICONIC Platform Architecture Diagram
+
+Single team view (each additional team follows the same pattern).
+
+```mermaid
+graph LR
+    subgraph Actors
+        CBT["CBT Admin"]
+        TeamAdmin["Team 1 Admin"]
+        TeamDev["Team 1 Developer"]
+    end
+
+    subgraph Bitbucket
+        Template["project-template/"]
+        Repo["recruiting-ml-model/"]
+        Template -->|clone| Repo
+    end
+
+    subgraph DEV["DEV Workspace"]
+        Folder["/Teams/team1/recruiting-ml-model/"]
+        Catalog["Catalog: hr_digital_team1"]
+        Schema["Schema: recruiting_ml_model\n(tables, volumes, models)"]
+        Cluster["Dev Clusters"]
+        Policies["Cluster Policies\n(ml-gpu, ml-standard, interactive)"]
+        Shared["Shared Services\n(MLflow, Secrets, Feature Store)"]
+        Catalog --> Schema
+        Policies -.->|governs| Cluster
+    end
+
+    subgraph PRODLITE["PROD-LITE Workspace"]
+        PL_Cat["Catalog: team1_prod_lite"]
+        PL_Jobs["Jobs & Serving Endpoints"]
+        PL_Policy["Cluster Policies"]
+        PL_Policy -.->|governs| PL_Jobs
+    end
+
+    subgraph PROD["PROD Workspace"]
+        P_Cat["Catalog: aiconic_prod"]
+        P_Jobs["Production Jobs & Serving"]
+        CICD["Xena CI/CD Only"]
+    end
+
+    %% CBT governance
+    CBT -->|sets policies &\nguardrails| Policies
+    CBT -->|sets policies| PL_Policy
+    CBT -->|exclusive access| PROD
+
+    %% Team flows
+    TeamAdmin -->|owns| Catalog
+    TeamDev -->|develops in| Folder
+    TeamDev -->|reads/writes| Schema
+    TeamDev -->|runs on| Cluster
+
+    %% Git & Deploy
+    Repo -->|Git sync| Folder
+    Repo -->|"bundle deploy\n-t prod_lite"| PL_Jobs
+    Repo -->|"Xena CI/CD\n(CBT approved)"| CICD
+    TeamAdmin -->|self-service deploy| PL_Cat
+
+    %% Styling
+    classDef cbt fill:#2c3e50,color:#fff,stroke:#2c3e50
+    classDef team fill:#c0392b,color:#fff,stroke:#c0392b
+    classDef policy fill:#3498db,color:#fff,stroke:#3498db
+    classDef bb fill:#205081,color:#fff,stroke:#205081
+
+    class CBT cbt
+    class TeamAdmin,TeamDev team
+    class Policies,PL_Policy policy
+    class Template,Repo bb
+```
