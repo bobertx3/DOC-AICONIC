@@ -6,33 +6,7 @@ AICONIC (J&J) needs a multi-tenant AI/ML platform that enables federated teams t
 
 ---
 
-## Requirements & Databricks Solutions
-
-| # | Requirement | Databricks Solution |
-|---|-------------|---------------------|
-| **Structure** | | |
-| 1 | One project folder (Bitbucket) = one Unity Catalog schema = one deployment target | Each Bitbucket project folder maps 1:1 to a UC schema and a Databricks Asset Bundle (DAB) target. |
-| 2 | Projects include code, disk, compute, environment, secrets, data access | Git Folders (repos), Volumes, Cluster Policies, Init Scripts, Secret Scopes, UC grants. |
-| 3 | Cost allocation by project across dev and prod | Custom tags on clusters/jobs/warehouses. Cluster policies enforce `project_id` tagging. Tags flow to cloud billing. |
-| 4 | PROD-lite may or may not be isolated from Dev | Recommended: separate workspace. Alternative: logical isolation via UC + cluster policies. |
-| 5 | Only CBT has access to PROD | Dedicated PROD workspace. Access restricted to CBT admins + CI/CD service principals. |
-| **Team Federation** | | |
-| 6 | Teams spin up projects and compute without CBT | Team admins with delegated permissions. Cluster policies define allowed compute tiers. |
-| 7 | Team admins manage their space but not others | UC catalog ownership delegated per team. Workspace folder ACLs isolate teams. |
-| 8 | Per-project access control | UC schema-level grants + workspace folder ACLs per project. |
-| 9 | Teams deploy to PROD-lite without CBT | DABs with pre-configured PROD-lite targets. Teams run `databricks bundle deploy -t prod_lite`. |
-| 10 | CBT sets guardrails: compute limits, auto-shutoff | Cluster policies (instance types, max nodes, auto-termination), budget alerts. |
-| 11 | CBT should not access team data; audit if they do | CBT excluded from team catalog grants. `system.access.audit` logs all access attempts. |
-| 12 | ~10 teams, ~100s of projects | 1 catalog per team, N schemas per catalog. Scales naturally. |
-| **Shared Services** | | |
-| 13 | Preset environments | Cluster policies with fixed DBR versions + global init scripts per tier (`ml-standard`, `ml-gpu`). |
-| 14 | Experiment tracking, model registry, data catalogue | MLflow Tracking, UC Model Registry, UC data cataloguing. Model Serving for MCP/agent endpoints. |
-
----
-
-## Platform Architecture
-
-### DEV Workspace (Single Team View)
+## DEV Workspace Architecture
 
 ![DEV Architecture](aiconic-dev-view.png)
 
@@ -40,74 +14,51 @@ The DEV workspace is where teams do their day-to-day work. CBT sets cluster poli
 
 See [aiconic-dev-view.mmd](aiconic-dev-view.mmd) for the raw Mermaid source.
 
-### Full Platform (DEV + PROD-LITE + PROD)
-
-![Full Architecture](aiconic-architecture-simple.png)
-
-Adds the deployment path: teams self-service deploy to PROD-LITE via `databricks bundle deploy`, while PROD is gated behind CBT approval and Xena CI/CD.
-
-See [aiconic-architecture-simple.mmd](aiconic-architecture-simple.mmd) for the raw Mermaid source.
-
----
-
-## Auditing
-
-Databricks `system.access.audit` system tables record all access events across workspaces. CBT should monitor for:
-
-- **Cross-team data access** — any CBT admin or user accessing a team catalog they are not a member of
-- **Permission changes** — grants or revocations on catalogs, schemas, tables, or volumes
-- **Cluster policy overrides** — attempts to create clusters outside of approved policies
-- **Secret scope access** — reads of team secret scopes by non-team members
-- **PROD workspace access** — all login and API activity in the production workspace
-- **Data exports** — downloads or external transfers of sensitive team data
-
----
-
-## Workspace Hierarchy
+### DEV Workspace Hierarchy
 
 ```
-AICONIC Databricks Platform
+AICONIC-DEV Workspace
 |
-|-- [Workspace] AICONIC-DEV              (Development & QA-lite)
-|   |-- [Catalog] hr_digital_team1
-|   |   |-- [Schema] recruiting_ml_model          <-- 1:1 with Bitbucket project folder
-|   |   |-- [Schema] _team1_shared                <-- Shared team datasets
-|   |-- [Catalog] hr_digital_team2
-|   |   |-- [Schema] employee_churn_ml_model      <-- 1:1 with Bitbucket project folder
-|   |   |-- [Schema] _team2_shared
-|   |-- [Catalog] aiconic_shared
-|   |   |-- [Schema] reference_data
-|   |   |-- [Schema] shared_feature_store
-|   |-- [Folders] /Teams/hr_digital_team1/recruiting-ml-model/
-|   |-- [Folders] /Teams/hr_digital_team2/employee-churn-model/
-|   |-- [Policies] ml-standard, ml-gpu, interactive
-|   |-- [Secrets] per-team scopes
-|
-|-- [Workspace] AICONIC-PROD-LITE        (Self-service deployment)
-|   |-- [Catalog] hr_digital_team1_prod_lite
-|   |-- [Catalog] hr_digital_team2_prod_lite
-|   |-- [Policies] prod-lite-jobs, prod-lite-serving
-|   |-- [Jobs] deployed via DAB per project
-|
-|-- [Workspace] AICONIC-PROD             (CBT-only, Xena CI/CD)
-|   |-- [Catalog] aiconic_prod
-|   |-- Access: CBT admins + service principals only
-|
-|-- [Shared Metastore] spans all workspaces
-    |-- Audit: system.access.audit
-    |-- Lineage tracking enabled
+|-- [Catalog] hr_digital_team1
+|   |-- [Schema] recruiting_ml_model          <-- 1:1 with Bitbucket project folder
+|   |-- [Schema] _team1_shared                <-- Shared team datasets
+|-- [Catalog] hr_digital_team2
+|   |-- [Schema] employee_churn_ml_model      <-- 1:1 with Bitbucket project folder
+|   |-- [Schema] _team2_shared
+|-- [Catalog] aiconic_shared
+|   |-- [Schema] reference_data
+|   |-- [Schema] shared_feature_store
+|-- [Folders] /Teams/hr_digital_team1/recruiting-ml-model/
+|-- [Folders] /Teams/hr_digital_team2/employee-churn-model/
+|-- [Policies] ml-standard, ml-gpu, interactive
+|-- [Secrets] per-team scopes
 ```
 
-### Groups & Access
+### DEV Requirements & Databricks Solutions
 
-| Group | DEV | PROD-LITE | PROD |
-|-------|-----|-----------|------|
-| `cbt_admins` | Workspace admin (no team data) | Workspace admin | Full admin |
-| `team1_admins` | Own team1 catalog + folders | Deploy to team1 catalog | No access |
-| `team1_users` | Use team1 catalog + folders | Read-only | No access |
-| `team2_admins` | Own team2 catalog + folders | Deploy to team2 catalog | No access |
-| `team2_users` | Use team2 catalog + folders | Read-only | No access |
-| `cicd_sp` | Read repos | Deploy jobs | Deploy jobs |
+| # | Requirement | Databricks Solution |
+|---|-------------|---------------------|
+| 1 | One project folder (Bitbucket) = one Unity Catalog schema | Each Bitbucket project folder maps 1:1 to a UC schema and a DAB bundle. |
+| 2 | Projects include code, disk, compute, environment, secrets, data access | Git Folders (repos), Volumes, Cluster Policies, Init Scripts, Secret Scopes, UC grants. |
+| 3 | Cost allocation by project | Custom tags on clusters/jobs/warehouses. Cluster policies enforce `project_id` tagging. Tags flow to cloud billing. |
+| 4 | Teams spin up projects and compute without CBT | Team admins with delegated permissions. Cluster policies define allowed compute tiers. |
+| 5 | Team admins manage their space but not others | UC catalog ownership delegated per team. Workspace folder ACLs isolate teams. |
+| 6 | Per-project access control | UC schema-level grants + workspace folder ACLs per project. |
+| 7 | CBT sets guardrails: compute limits, auto-shutoff | Cluster policies (instance types, max nodes, auto-termination), budget alerts. |
+| 8 | CBT should not access team data; audit if they do | CBT excluded from team catalog grants. `system.access.audit` logs all access attempts. |
+| 9 | ~10 teams, ~100s of projects | 1 catalog per team, N schemas per catalog. Scales naturally. |
+| 10 | Preset environments | Cluster policies with fixed DBR versions + global init scripts per tier (`ml-standard`, `ml-gpu`). |
+| 11 | Experiment tracking, model registry, data catalogue | MLflow Tracking, UC Model Registry, UC data cataloguing. Model Serving for MCP/agent endpoints. |
+
+### DEV Groups & Access
+
+| Group | DEV Access |
+|-------|-----------|
+| `cbt_admins` | Workspace admin (no team data access) |
+| `team1_admins` | Own team1 catalog + folders |
+| `team1_users` | Use team1 catalog + folders |
+| `team2_admins` | Own team2 catalog + folders |
+| `team2_users` | Use team2 catalog + folders |
 
 ---
 
@@ -162,16 +113,6 @@ targets:
     workspace:
       host: https://aiconic-dev.cloud.databricks.com
 
-  prod_lite:
-    workspace:
-      host: https://aiconic-prod-lite.cloud.databricks.com
-
-  prod:
-    workspace:
-      host: https://aiconic-prod.cloud.databricks.com
-    run_as:
-      service_principal_name: "cicd_sp"
-
 resources:
   jobs:
     training_pipeline:
@@ -204,7 +145,92 @@ Develop using either:
 
 Data access: read/write your schema (`hr_digital_team1.recruiting_ml_model`), read shared data (`aiconic_shared`).
 
-### Step 4: Deploy to PROD-LITE (Self-Service)
+---
+
+## Example: Two HR Digital Teams
+
+| | HR Digital Team 1 | HR Digital Team 2 |
+|---|---|---|
+| **Project** | Recruiting Candidate Prediction | Employee Churn Prediction |
+| **Bitbucket Folder** | `recruiting-ml-model/` | `employee-churn-model/` |
+| **DEV Schema** | `hr_digital_team1.recruiting_ml_model` | `hr_digital_team2.employee_churn_ml_model` |
+| **Cluster Policy** | `ml-gpu` (training), `interactive` (EDA) | `ml-standard` (training), `interactive` (EDA) |
+| **Cost Tag** | `aiconic-team1-recruiting` | `aiconic-team2-churn` |
+| **Data Sources** | Candidate data, job postings, interview scores | Employee records, engagement surveys, exit interviews |
+| **Model Output** | Candidate fit score (0-1) | Churn probability (0-1) |
+
+---
+
+## Deploying to Production
+
+Once development is working in the DEV workspace, teams can promote their projects through PROD-LITE and PROD environments.
+
+### Full Platform View (DEV + PROD-LITE + PROD)
+
+![Full Architecture](aiconic-architecture-simple.png)
+
+See [aiconic-architecture-simple.mmd](aiconic-architecture-simple.mmd) for the raw Mermaid source.
+
+### Additional Workspaces
+
+```
+AICONIC-PROD-LITE                       (Self-service deployment)
+|-- [Catalog] hr_digital_team1_prod_lite
+|-- [Catalog] hr_digital_team2_prod_lite
+|-- [Policies] prod-lite-jobs, prod-lite-serving
+|-- [Jobs] deployed via DAB per project
+
+AICONIC-PROD                            (CBT-only, Xena CI/CD)
+|-- [Catalog] aiconic_prod
+|-- Access: CBT admins + service principals only
+
+Shared Metastore spans all workspaces
+|-- Lineage tracking enabled
+```
+
+### Production Requirements
+
+| # | Requirement | Databricks Solution |
+|---|-------------|---------------------|
+| 1 | PROD-lite may or may not be isolated from Dev | Recommended: separate workspace. Alternative: logical isolation via UC + cluster policies. |
+| 2 | Teams deploy to PROD-lite without CBT | DABs with pre-configured PROD-lite targets. Teams run `databricks bundle deploy -t prod_lite`. |
+| 3 | Only CBT has access to PROD | Dedicated PROD workspace. Access restricted to CBT admins + CI/CD service principals. |
+| 4 | Cost allocation spans dev and prod | Same `project_id` tag used across all workspaces. Tags flow to cloud billing. |
+
+### Production Groups & Access
+
+| Group | DEV | PROD-LITE | PROD |
+|-------|-----|-----------|------|
+| `cbt_admins` | Workspace admin (no team data) | Workspace admin | Full admin |
+| `team1_admins` | Own team1 catalog + folders | Deploy to team1 catalog | No access |
+| `team1_users` | Use team1 catalog + folders | Read-only | No access |
+| `team2_admins` | Own team2 catalog + folders | Deploy to team2 catalog | No access |
+| `team2_users` | Use team2 catalog + folders | Read-only | No access |
+| `cicd_sp` | Read repos | Deploy jobs | Deploy jobs |
+
+### Adding PROD-LITE and PROD Targets to the Bundle
+
+Add deployment targets to `databricks.yml`:
+
+```yaml
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://aiconic-dev.cloud.databricks.com
+
+  prod_lite:
+    workspace:
+      host: https://aiconic-prod-lite.cloud.databricks.com
+
+  prod:
+    workspace:
+      host: https://aiconic-prod.cloud.databricks.com
+    run_as:
+      service_principal_name: "cicd_sp"
+```
+
+### Deploy to PROD-LITE (Self-Service)
 
 Teams deploy directly without CBT:
 
@@ -226,26 +252,30 @@ pipelines:
             - databricks bundle deploy --target prod_lite
 ```
 
-### Step 5: Promote to PROD (CBT-Managed)
+### Promote to PROD (CBT-Managed)
 
 1. Team raises a deployment request (e.g., Jira ticket to CBT).
 2. CBT reviews and approves.
 3. Xena CI/CD pipeline runs `databricks bundle deploy --target prod`.
 4. Only the `cicd_sp` service principal can deploy to PROD.
 
----
-
-## Example: Two HR Digital Teams
+### Production Example: Two HR Digital Teams
 
 | | HR Digital Team 1 | HR Digital Team 2 |
 |---|---|---|
-| **Project** | Recruiting Candidate Prediction | Employee Churn Prediction |
-| **Bitbucket Folder** | `recruiting-ml-model/` | `employee-churn-model/` |
-| **DEV Schema** | `hr_digital_team1.recruiting_ml_model` | `hr_digital_team2.employee_churn_ml_model` |
 | **PROD-LITE Schema** | `hr_digital_team1_prod_lite.recruiting_ml_model` | `hr_digital_team2_prod_lite.employee_churn_ml_model` |
 | **PROD Schema** | `aiconic_prod.recruiting_ml_model` | `aiconic_prod.employee_churn_ml_model` |
-| **Cluster Policy** | `ml-gpu` (training), `interactive` (EDA) | `ml-standard` (training), `interactive` (EDA) |
-| **Cost Tag** | `aiconic-team1-recruiting` | `aiconic-team2-churn` |
-| **Data Sources** | Candidate data, job postings, interview scores | Employee records, engagement surveys, exit interviews |
-| **Model Output** | Candidate fit score (0-1) | Churn probability (0-1) |
 | **Serving** | Batch scoring via scheduled job | Real-time endpoint via Model Serving |
+
+---
+
+## Auditing
+
+Databricks `system.access.audit` system tables record all access events across workspaces. CBT should monitor for:
+
+- **Cross-team data access** — any CBT admin or user accessing a team catalog they are not a member of
+- **Permission changes** — grants or revocations on catalogs, schemas, tables, or volumes
+- **Cluster policy overrides** — attempts to create clusters outside of approved policies
+- **Secret scope access** — reads of team secret scopes by non-team members
+- **PROD workspace access** — all login and API activity in the production workspace
+- **Data exports** — downloads or external transfers of sensitive team data
